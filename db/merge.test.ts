@@ -39,6 +39,15 @@ async function profileExists(db: PGlite, profileId: string): Promise<boolean> {
   return rows.length > 0;
 }
 
+const MERGED_TABLES = [
+  "learning_signals",
+  "pending_sign_ins",
+  "saved_phrases",
+  "translation_outcomes",
+  "translations",
+  "user_feedback",
+] as const;
+
 describe("merge_profile", () => {
   test("moves the donor's content onto the survivor", async ({ db }) => {
     const donor = await insertProfile(db, "laptop");
@@ -81,6 +90,25 @@ describe("merge_profile", () => {
     expect(await countFor(db, "user_feedback", survivor)).toBe(1);
     expect(await countFor(db, "translation_outcomes", survivor)).toBe(1);
     expect(await countFor(db, "learning_signals", survivor)).toBe(1);
+  });
+
+  /**
+   * The merge deletes the donor, and a pending sign-in hangs off it with
+   * `on delete cascade`. Carried across it survives; forgotten it is destroyed
+   * by the merge, taking with it the record a waiting device is watching.
+   */
+  test("carries a pending sign-in across", async ({ db }) => {
+    const donor = await insertProfile(db, "laptop");
+    const survivor = await insertProfile(db, "phone");
+    await db.query(
+      `insert into pending_sign_ins (profile_id, email, expires_at)
+       values ($1, 'someone@example.com', now() + interval '15 minutes')`,
+      [donor],
+    );
+
+    await merge(db, donor, survivor);
+
+    expect(await countFor(db, "pending_sign_ins", survivor)).toBe(1);
   });
 
   test("moves a saved phrase the survivor does not have", async ({ db }) => {
@@ -197,5 +225,28 @@ describe("merge_profile", () => {
     await db.query("update profiles set user_id = $1 where id = $2", [rows[0]?.id, donor]);
 
     await expect(merge(db, donor, survivor)).rejects.toThrow();
+  });
+  /**
+   * The guard that matters for the future.
+   *
+   * `delete_profile` gets this for free: every table references `profiles` with
+   * `on delete cascade`, so a table added later is still emptied. A merge has
+   * no such luck — it re-parents by naming each table, and one this function
+   * has never heard of is not left behind, it is destroyed with the donor.
+   *
+   * So the tables that reference `profiles` are compared against the ones the
+   * merge is actually exercised with, here and in `db/sign-in.test.ts`.
+   */
+  test("carries across every table that references profiles", async ({ db }) => {
+    const { rows } = await db.query<{ tablename: string }>(
+      `select distinct src.relname as tablename
+       from pg_constraint c
+       join pg_class src on src.oid = c.conrelid
+       join pg_class tgt on tgt.oid = c.confrelid
+       where c.contype = 'f' and tgt.relname = 'profiles'
+       order by 1`,
+    );
+
+    expect(rows.map((row) => row.tablename)).toEqual([...MERGED_TABLES]);
   });
 });

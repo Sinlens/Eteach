@@ -7,6 +7,7 @@ import {
   ensureProfileCall,
   listHistoryCall,
   mergeProfileCall,
+  startSignInCall,
   listSavedPhrasesCall,
   recordFeedbackCall,
   recordOutcomeCall,
@@ -32,6 +33,10 @@ const SAMPLE_CALLS: RpcCall[] = [
   mergeProfileCall({
     donorProfileId: "00000000-0000-0000-0000-000000000000",
     survivorProfileId: "00000000-0000-0000-0000-000000000001",
+  }),
+  startSignInCall({
+    profileId: "00000000-0000-0000-0000-000000000000",
+    email: "someone@example.com",
   }),
   recordTranslationCall({
     profileId: "00000000-0000-0000-0000-000000000000",
