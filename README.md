@@ -135,9 +135,11 @@ from the same day.
 
 ### Authentication
 
-None of this is built yet. It is written down because the decisions below
-constrain each other, and discovering that while writing the code is how half of
-them end up being made by accident.
+Only the first part of this is built: identity reaches the server in a cookie,
+and no server function takes it as an argument any more. Everything from the
+magic link onwards is decided and not yet written. It was written down first
+because the decisions below constrain each other, and discovering that while
+writing the code is how half of them end up being made by accident.
 
 Signing in is optional and stays optional. The tool works without an account the
 way a translator does, which is why `profiles.user_id` is nullable and why a
