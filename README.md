@@ -179,11 +179,16 @@ merge where two identities that both already exist have to become one.
 initial schema created as a placeholder goes when this arrives, because two
 tables holding the truth about an email address is one too many.
 
+Authenticating uses the project's publishable key, not the service role key
+`src/server/db/supabase.ts` holds. Those are opposite jobs — one establishes who
+somebody is, the other is entitled to ignore the question — so they are two
+clients with nothing shared between them that could be handed the wrong one.
+
 Identity travels in a cookie the server sets, for everybody rather than only for
-accounts. That is not a detail of signing in, it is the part that has to change
-first: every server function in `src/services/remote/data-functions.ts` takes
-`anonymousKey` in its payload today, and the schema in front of it validates the
-shape of that key and never its ownership — a caller says who it is and is
+accounts. That is not a detail of signing in, it was the part that had to change
+first: every server function in `src/services/remote/data-functions.ts` used to
+take `anonymousKey` in its payload, where the schema in front of it validated
+the shape of that key and never its ownership — a caller said who it was and was
 believed. The cookie holds one of two valid states, a device or an account, and
 the server resolves a `profile_id` from either. That is also what makes the
 merge implementable at all, because a client that keeps sending the donor's key
@@ -195,6 +200,14 @@ worth keeping sits on the laptop. So requesting a link writes a pending sign-in
 that binds the request to the requesting device's profile, and the link carries
 an opaque reference to it. The merge then follows the request rather than the
 click.
+
+The same fact decides what else the link may carry. A code bound to the browser
+that asked for it cannot be redeemed anywhere else, because the secret half of
+that exchange stays on the laptop and the phone arrives without it — so the mail
+has to send something the server alone can verify, a token hash rather than a
+ready-made confirmation URL. A token delivered in a URL fragment is no better: a
+fragment never leaves the browser, and the side that has to finish this is the
+server.
 
 That record has a second job, and it is not a convenience. Once the merge runs
 the laptop holds the key of a profile that no longer exists, and
@@ -296,6 +309,12 @@ server process.
 Deployed, none of that applies: the host supplies real environment variables,
 and both of these have to be set there. Without them every server function
 throws before it reaches the database.
+
+Signing in needs one key more: the project's publishable key, or the anon key on
+a project old enough to call it that. It is a server secret like the others and
+for the same reason, and it is not interchangeable with the service role key —
+authenticating somebody and being allowed to ignore who they are do not share a
+credential.
 
 ## Built with
 
