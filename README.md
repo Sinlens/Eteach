@@ -138,11 +138,14 @@ from the same day.
 
 ### Authentication
 
-Only the first part of this is built: identity reaches the server in a cookie,
-and no server function takes it as an argument any more. Everything from the
-magic link onwards is decided and not yet written. It was written down first
-because the decisions below constrain each other, and discovering that while
-writing the code is how half of them end up being made by accident.
+What exists is everything the database side of this needs: identity reaches the
+server in a cookie and no server function takes it as an argument,
+`merge_profile` folds one profile into another, and `start_sign_in` and
+`complete_sign_in` hold the request together. What is missing is the part that
+talks to Supabase Auth and to the browser — sending the link, the callback that
+completes it, and the session the waiting device picks up. It was all written
+down first because the decisions below constrain each other, and discovering
+that while writing the code is how half of them end up being made by accident.
 
 Signing in is optional and stays optional. The tool works without an account the
 way a translator does, which is why `profiles.user_id` is nullable and why a
