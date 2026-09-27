@@ -1,0 +1,12 @@
+# Normalise to LF in the repository so Windows checkouts and Lovable's syncs
+# do not produce whole-file diffs against each other.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
