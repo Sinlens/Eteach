@@ -1,4 +1,9 @@
--- Reference data for the initial schema.
+-- Reference data, not sample data.
+--
+-- This is a migration rather than `supabase/seed.sql` on purpose: seed.sql only
+-- runs on a local `db reset`, never against a deployed project, and these rows
+-- are pointed at by foreign keys from every table that matters. Without them
+-- production cannot accept a single translation.
 --
 -- The ids here are the same ids the TypeScript contracts use. `db/schema.test.ts`
 -- asserts that, so the two cannot drift apart silently.

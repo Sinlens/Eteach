@@ -38,3 +38,6 @@ dist-ssr
 
 # Stale Lovable source export, superseded by the working tree
 professional-english-coach-src.zip
+
+# Agent tooling state, not project code
+.atl/

@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, test as base } from "vitest";
 
-const MIGRATIONS_DIR = fileURLToPath(new URL("./migrations/", import.meta.url));
-const SEEDS_DIR = fileURLToPath(new URL("./seeds/", import.meta.url));
+// The schema itself lives where the Supabase CLI expects it; these tests only
+// read it. Reference data is a migration too, so there is a single source.
+const MIGRATIONS_DIR = fileURLToPath(new URL("../supabase/migrations/", import.meta.url));
 
 function readSqlFiles(directory: string): string[] {
   return readdirSync(directory)
@@ -28,9 +29,6 @@ async function database(): Promise<PGlite> {
 
   const db = new PGlite();
   for (const sql of readSqlFiles(MIGRATIONS_DIR)) {
-    await db.exec(sql);
-  }
-  for (const sql of readSqlFiles(SEEDS_DIR)) {
     await db.exec(sql);
   }
 
