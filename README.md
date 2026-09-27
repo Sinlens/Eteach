@@ -12,7 +12,7 @@ back into the Lovable editor, so keep the branch in a working state.
 | --- | --- |
 | UI — translator, phrase library, history | Working |
 | Contracts and services | Working, behind ports |
-| Database schema and API functions | Written and tested, not yet deployed |
+| Database schema and API functions | Deployed, and exercised end to end |
 | The rewrite itself | **Mocked.** The model belongs to a later phase |
 
 The rewriter returns authored fixtures, not model output. Everything around it —
@@ -59,25 +59,52 @@ engine. What is left on the client is a function name and its arguments — and
 
 ## Database
 
+`supabase/config.toml` is committed, so a clone only has to point itself at a
+project. The CLI needs no global install — `npx` is enough:
+
 ```sh
-supabase init                              # creates config.toml next to the migrations
-supabase link --project-ref <your-ref>
-supabase db push
+npx supabase link --project-ref <your-ref>
+npx supabase db push
 ```
+
+Against a project that is already current, `db push` finds nothing to do: the
+migration history recorded there carries the same versions as the filenames
+here.
 
 Reference data (careers, tones, locales, phrase cards) ships as a migration
 rather than `supabase/seed.sql`, because `seed.sql` only runs on a local
 `db reset` and those rows are the targets of foreign keys the app needs.
 
-Row level security is enabled on every table holding user data, with no
-policies: nothing is reachable except through the server, which holds the
-service role key. Policies get written together with the auth provider.
+### Access control
+
+Every table holding user data has row level security enabled and no policies at
+all, which denies everything. The only way in is the server, which holds the
+service role key. Real policies get written together with the auth provider.
+
+The taxonomies are the exception: they are public reference data, so each one
+carries a single `select` policy and nothing else. Their write privileges are
+revoked at the grant level as well, because Supabase hands `anon` every
+privilege on a new table in `public` — and since every table that matters has a
+foreign key into them, one `delete from careers` sent from a browser would stop
+the product rather than degrade it.
 
 ## Environment
 
 Copy `.env.example` to `.env`. `VITE_DATA_BACKEND` defaults to `mock`, which
 needs no infrastructure. Set it to `supabase` and supply `SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY` as **server** secrets — never `VITE_`-prefixed.
+`SUPABASE_SERVICE_ROLE_KEY` as **server** secrets — never `VITE_`-prefixed. With
+that prefix they would be inlined into the browser bundle, and the service role
+key bypasses row level security by design.
+
+That rule has a consequence in development. Vite reads only `VITE_` variables
+out of `.env`, and it puts them in the client bundle, never in `process.env` —
+which is where `src/server/db/supabase.ts` looks. So the `dev` script starts
+Vite through Node's `--env-file-if-exists`, which loads the whole file into the
+server process.
+
+Deployed, none of that applies: the host supplies real environment variables,
+and both of these have to be set there. Without them every server function
+throws before it reaches the database.
 
 ## Built with
 
