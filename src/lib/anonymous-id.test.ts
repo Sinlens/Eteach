@@ -4,6 +4,7 @@ import {
   ANONYMOUS_ID_STORAGE_KEY,
   createMemoryKeyValueStore,
   ensureAnonymousId,
+  resetAnonymousId,
 } from "./anonymous-id";
 
 describe("ensureAnonymousId", () => {
@@ -43,5 +44,38 @@ describe("ensureAnonymousId", () => {
     expect(ensureAnonymousId(createMemoryKeyValueStore())).not.toBe(
       ensureAnonymousId(createMemoryKeyValueStore()),
     );
+  });
+});
+
+/**
+ * Deleting the rows but keeping the key that pointed at them is half a delete:
+ * the browser would go on carrying the identifier the data was filed under, and
+ * the next request would rebuild a profile against it.
+ */
+describe("resetAnonymousId", () => {
+  it("issues an id that is not the old one", () => {
+    const store = createMemoryKeyValueStore();
+    const before = ensureAnonymousId(store);
+
+    const after = resetAnonymousId(store);
+
+    expect(after).toMatch(/^[0-9a-f-]{36}$/);
+    expect(after).not.toBe(before);
+  });
+
+  it("stores the new id, so the old one is never sent again", () => {
+    const store = createMemoryKeyValueStore();
+    ensureAnonymousId(store);
+
+    const after = resetAnonymousId(store);
+
+    expect(store.read(ANONYMOUS_ID_STORAGE_KEY)).toBe(after);
+    expect(ensureAnonymousId(store)).toBe(after);
+  });
+
+  it("works when there was nothing stored yet", () => {
+    const store = createMemoryKeyValueStore();
+
+    expect(resetAnonymousId(store)).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
