@@ -204,17 +204,22 @@ export function recordOutcomeCall(input: {
   };
 }
 
+/**
+ * Returns the profile the account now lives on. The account is named by its
+ * user, not by a profile the caller had to find first — on a first sign-in
+ * there is no such profile to find.
+ */
 export function completeSignInCall(input: {
   pendingId: string;
   email: string;
-  survivorProfileId: string;
+  userId: string;
 }): RpcCall {
   return {
     fn: "complete_sign_in",
     args: {
       p_pending_id: input.pendingId,
       p_email: input.email,
-      p_survivor_profile_id: input.survivorProfileId,
+      p_user_id: input.userId,
     },
   };
 }

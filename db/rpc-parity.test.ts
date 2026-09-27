@@ -42,7 +42,7 @@ const SAMPLE_CALLS: RpcCall[] = [
   completeSignInCall({
     pendingId: "00000000-0000-0000-0000-000000000002",
     email: "someone@example.com",
-    survivorProfileId: "00000000-0000-0000-0000-000000000001",
+    userId: "00000000-0000-0000-0000-000000000003",
   }),
   recordTranslationCall({
     profileId: "00000000-0000-0000-0000-000000000000",
