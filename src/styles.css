@@ -1,0 +1,458 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --font-sans: "Manrope", sans-serif;
+  --font-display: "Sora", sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-primary-soft: var(--primary-soft);
+  --color-category-blue: var(--category-blue);
+  --color-category-purple: var(--category-purple);
+  --color-category-orange: var(--category-orange);
+  --color-category-ink: var(--category-ink);
+  --color-pool-top: var(--pool-top);
+  --color-pool-mid: var(--pool-mid);
+  --color-pool-deep: var(--pool-deep);
+  --color-pool-line: var(--pool-line);
+  --color-bubble-surface: var(--bubble-surface);
+  --color-bubble-edge: var(--bubble-edge);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.178 0.008 157);
+  --foreground: oklch(0.965 0.01 180);
+  --card: oklch(0.336 0.008 170);
+  --card-foreground: oklch(0.965 0.01 180);
+  --popover: oklch(0.243 0.009 157);
+  --popover-foreground: oklch(0.965 0.01 180);
+  --primary: oklch(0.828 0.202 153);
+  --primary-foreground: oklch(0.15 0.018 157);
+  --secondary: oklch(0.243 0.009 157);
+  --secondary-foreground: oklch(0.914 0.014 183);
+  --muted: oklch(0.275 0.008 160);
+  --muted-foreground: oklch(0.76 0.014 180);
+  --accent: oklch(0.31 0.012 160);
+  --accent-foreground: oklch(0.965 0.01 180);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.41 0.01 165 / 65%);
+  --input: oklch(0.44 0.01 165);
+  --ring: oklch(0.828 0.202 153);
+  --primary-soft: oklch(0.828 0.202 153 / 9%);
+  --category-blue: oklch(0.78 0.12 225);
+  --category-purple: oklch(0.78 0.12 300);
+  --category-orange: oklch(0.84 0.1 65);
+  --category-ink: oklch(0.18 0.02 225);
+  --pool-top: oklch(0.63 0.14 188);
+  --pool-mid: oklch(0.42 0.12 200);
+  --pool-deep: oklch(0.2 0.07 210);
+  --pool-line: oklch(0.88 0.08 180 / 18%);
+  --bubble-surface: oklch(0.94 0.07 180 / 18%);
+  --bubble-edge: oklch(0.92 0.08 175 / 55%);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+    text-rendering: optimizeLegibility;
+  }
+
+  button, a, select, textarea { -webkit-tap-highlight-color: transparent; }
+}
+
+@utility result-enter {
+  animation: result-enter 360ms ease-out both;
+}
+
+.waterfall-panel {
+  transform-origin: top center;
+  animation: waterfall-panel-in 180ms ease-out both;
+}
+
+.waterfall-card {
+  animation: waterfall-card-drop 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes waterfall-panel-in {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+@keyframes waterfall-card-drop {
+  from { opacity: 0; transform: translateY(-16px) scale(0.97); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+.pool-hero {
+  position: relative;
+  min-height: min(88svh, 54rem);
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--pool-top) 0%, var(--pool-mid) 46%, var(--pool-deep) 100%);
+}
+
+.pool-header {
+  position: relative;
+  z-index: 20;
+  border-bottom: 1px solid var(--pool-line);
+  background: color-mix(in oklab, var(--background) 40%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.pool-library-button {
+  color: var(--foreground);
+}
+
+.pool-depth {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.pool-depth::before,
+.pool-depth::after {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  background-image:
+    repeating-radial-gradient(ellipse at 45% 20%, transparent 0 6%, var(--pool-line) 6.5% 7%, transparent 7.5% 13%),
+    repeating-radial-gradient(ellipse at 68% 34%, transparent 0 9%, var(--pool-line) 9.5% 10%, transparent 10.5% 18%);
+  opacity: 0.55;
+  animation: pool-current 15s linear infinite;
+}
+
+.pool-depth::after {
+  transform: rotate(180deg) scale(1.15);
+  opacity: 0.28;
+  animation-direction: reverse;
+  animation-duration: 19s;
+}
+
+.pool-light {
+  position: absolute;
+  top: -20%;
+  width: 22%;
+  height: 110%;
+  transform: rotate(17deg);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--foreground) 28%, transparent), transparent 74%);
+  filter: blur(20px);
+  opacity: 0.2;
+}
+
+.pool-light--one { left: 18%; }
+.pool-light--two { right: 12%; width: 13%; opacity: 0.12; }
+
+.pool-floor {
+  position: absolute;
+  inset: 68% -10% -25%;
+  transform: perspective(500px) rotateX(58deg);
+  transform-origin: top;
+  background-image:
+    linear-gradient(var(--pool-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--pool-line) 1px, transparent 1px);
+  background-size: 78px 78px;
+  opacity: 0.35;
+}
+
+.pool-copy {
+  position: relative;
+  z-index: 4;
+  width: min(42rem, calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding-top: clamp(3.5rem, 9vh, 6.5rem);
+  text-align: center;
+  text-shadow: 0 2px 20px color-mix(in oklab, var(--pool-deep) 65%, transparent);
+}
+
+.pool-copy h1 {
+  margin-top: 0.8rem;
+  font-size: clamp(2.6rem, 6vw, 5.8rem);
+  font-weight: 600;
+  line-height: 1.02;
+}
+
+.pool-copy > p:last-child {
+  max-width: 34rem;
+  margin: 1.25rem auto 0;
+  font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+  line-height: 1.65;
+  color: color-mix(in oklab, var(--foreground) 82%, transparent);
+}
+
+.pool-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.bubble-field {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.career-bubble {
+  position: absolute;
+  display: grid;
+  width: var(--bubble-size);
+  height: var(--bubble-size);
+  min-height: 0;
+  padding: 0;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid var(--bubble-edge);
+  border-radius: 999px;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at 30% 22%, color-mix(in oklab, var(--foreground) 40%, transparent) 0 4%, transparent 15%),
+    radial-gradient(circle at 38% 34%, color-mix(in oklab, var(--foreground) 18%, transparent), var(--bubble-surface) 44%, color-mix(in oklab, var(--pool-deep) 18%, transparent));
+  box-shadow:
+    inset -12px -16px 28px color-mix(in oklab, var(--pool-deep) 30%, transparent),
+    inset 8px 10px 20px color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 18px 42px color-mix(in oklab, var(--pool-deep) 38%, transparent);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+  animation: bubble-float var(--float-speed) ease-in-out infinite;
+  transition: border-color 180ms ease, filter 180ms ease;
+}
+
+.career-bubble:hover {
+  border-color: var(--primary);
+  filter: brightness(1.14);
+}
+
+.career-bubble:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 5px;
+}
+
+.career-bubble:disabled { opacity: 1; }
+
+.career-bubble--science { --bubble-size: 8.5rem; --float-speed: 5.6s; left: 8%; top: 45%; }
+.career-bubble--analytics { --bubble-size: 7rem; --float-speed: 6.3s; left: 26%; top: 70%; animation-delay: -2s; }
+.career-bubble--engineering { --bubble-size: 9.6rem; --float-speed: 6.8s; right: 9%; top: 41%; animation-delay: -3.2s; }
+.career-bubble--architecture { --bubble-size: 8rem; --float-speed: 5.2s; right: 27%; top: 70%; animation-delay: -1.2s; }
+
+.bubble-label {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-shadow: 0 1px 12px var(--pool-deep);
+}
+
+.bubble-shine {
+  position: absolute;
+  top: 16%;
+  left: 20%;
+  width: 27%;
+  height: 14%;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 52%, transparent);
+  filter: blur(2px);
+  transform: rotate(-28deg);
+}
+
+.bubble-ripple {
+  position: absolute;
+  inset: -12%;
+  border: 1px solid color-mix(in oklab, var(--foreground) 30%, transparent);
+  border-radius: inherit;
+  opacity: 0;
+}
+
+.career-bubble.is-popping {
+  animation: bubble-pop 420ms ease-out forwards;
+}
+
+.career-bubble.is-popping .bubble-ripple {
+  animation: bubble-ripple 420ms ease-out forwards;
+}
+
+.pool-dive-link {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+}
+
+.pool-dive-link svg { animation: dive-prompt 1.8s ease-in-out infinite; }
+
+@keyframes result-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pool-current {
+  from { transform: translate3d(-2%, -1%, 0) rotate(0.01deg); }
+  50% { transform: translate3d(3%, 2%, 0) rotate(1.5deg); }
+  to { transform: translate3d(-2%, -1%, 0) rotate(0.01deg); }
+}
+
+@keyframes bubble-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-1deg); }
+  50% { transform: translate3d(0, -14px, 0) rotate(2deg); }
+}
+
+@keyframes bubble-pop {
+  0% { transform: scale(1); opacity: 1; }
+  58% { transform: scale(1.22); opacity: 0.9; filter: brightness(1.7); }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+
+@keyframes bubble-ripple {
+  0% { transform: scale(0.8); opacity: 0; }
+  24% { opacity: 1; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+
+@keyframes dive-prompt {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+
+@media (max-width: 767px) {
+  .pool-hero { min-height: 46rem; }
+  .pool-copy { padding-top: 3.75rem; }
+  .pool-copy h1 { max-width: 22rem; margin-inline: auto; }
+  .career-bubble--science { --bubble-size: 7.1rem; left: 5%; top: 48%; }
+  .career-bubble--analytics { --bubble-size: 6.4rem; left: 8%; top: 70%; }
+  .career-bubble--engineering { --bubble-size: 7.8rem; right: 4%; top: 50%; }
+  .career-bubble--architecture { --bubble-size: 7rem; right: 8%; top: 73%; }
+  .bubble-label { font-size: 0.68rem; }
+  .pool-floor { inset-block-start: 72%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}
