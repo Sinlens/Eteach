@@ -133,6 +133,73 @@ Retention needs nothing from this: re-parenting touches `profile_id` only, so
 `created_at` survives and `maintenance.anonymize_expired_content` keeps counting
 from the same day.
 
+### Authentication
+
+None of this is built yet. It is written down because the decisions below
+constrain each other, and discovering that while writing the code is how half of
+them end up being made by accident.
+
+Signing in is optional and stays optional. The tool works without an account the
+way a translator does, which is why `profiles.user_id` is nullable and why a
+merge exists at all — if signing in were a gate there would be nothing collected
+in advance to merge. So there are no route guards, and no capability is held
+back behind an account: what an account buys is continuity across devices, not
+features.
+
+The credential is a magic link, and there is no password. That is only a safe
+choice because signing in is optional. A magic link's usual worst failure is
+being locked out, and here a link that never arrives leaves somebody working
+anonymously with their history intact, free to try again later. It also
+collapses the two flows that need email — signing in, and resetting a password —
+into one.
+
+Supabase Auth issues and refreshes the token and does nothing else.
+Authorization stays where access control already puts it: policies remain
+deny-all, the server keeps the service role key, and the browser never talks to
+PostgREST. Anonymous sign-ins and manual linking stay disabled, and not by
+accident — Supabase links an identity onto one user, which cannot express a
+merge where two identities that both already exist have to become one.
+`profiles.user_id` references `auth.users`, and the empty `users` table the
+initial schema created as a placeholder goes when this arrives, because two
+tables holding the truth about an email address is one too many.
+
+Identity travels in a cookie the server sets, for everybody rather than only for
+accounts. That is not a detail of signing in, it is the part that has to change
+first: every server function in `src/services/remote/data-functions.ts` takes
+`anonymousKey` in its payload today, and the schema in front of it validates the
+shape of that key and never its ownership — a caller says who it is and is
+believed. The cookie holds one of two valid states, a device or an account, and
+the server resolves a `profile_id` from either. That is also what makes the
+merge implementable at all, because a client that keeps sending the donor's key
+in a payload can never be told to stop.
+
+A clickable link completes wherever it is opened, which is rarely where it was
+asked for — somebody reading mail on a phone signs in there while the history
+worth keeping sits on the laptop. So requesting a link writes a pending sign-in
+that binds the request to the requesting device's profile, and the link carries
+an opaque reference to it. The merge then follows the request rather than the
+click.
+
+That record has a second job, and it is not a convenience. Once the merge runs
+the laptop holds the key of a profile that no longer exists, and
+`ensure_profile` answers a key it cannot find by creating a profile rather than
+by refusing — so the device that started the sign-in has to learn that it
+finished and claim its own session. A six digit code would have removed the need
+for the record entirely by completing in the browser that asked for it. The link
+is friendlier, and this is what it costs.
+
+Sessions should be long. An hour suits a product people sign into as a matter of
+routine, and this one is signed into once, deliberately, to stop having to carry
+a device around; the refresh token rotation already configured is what keeps a
+long session safe. Magic links redirect to `site_url`, so it has to name where
+the app actually runs in every environment, and the built-in mail is rate
+limited hard enough to interrupt development — an SMTP sender is needed before
+the first real person is.
+
+Nothing has to be migrated. Moving the key out of `localStorage` would orphan
+every profile collected before the change, and there are none: the rewrite is
+still mocked and nobody has been onboarded.
+
 ### Access control
 
 Every table holding user data has row level security enabled and no policies at
