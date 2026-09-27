@@ -3,6 +3,7 @@ import { describe, expect } from "vitest";
 import {
   RPC_FUNCTIONS,
   clearHistoryCall,
+  deleteProfileCall,
   ensureProfileCall,
   listHistoryCall,
   listSavedPhrasesCall,
@@ -70,6 +71,7 @@ const SAMPLE_CALLS: RpcCall[] = [
     action: "edited",
     acceptedVersion: "What was actually sent.",
   }),
+  deleteProfileCall("00000000-0000-0000-0000-000000000000"),
 ];
 
 describe("rpc parity between TypeScript and PostgreSQL", () => {

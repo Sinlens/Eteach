@@ -57,3 +57,17 @@ export function ensureAnonymousId(store: KeyValueStore = createLocalKeyValueStor
   store.write(ANONYMOUS_ID_STORAGE_KEY, created);
   return created;
 }
+
+/**
+ * Issues a new identity, discarding the current one.
+ *
+ * This belongs to the delete path. Removing somebody's rows while their browser
+ * keeps the key those rows were filed under is half a delete — the identifier
+ * survives, and the next request rebuilds a profile against it. Rotating here
+ * makes the break complete: the old key is never sent again.
+ */
+export function resetAnonymousId(store: KeyValueStore = createLocalKeyValueStore()): string {
+  const created = crypto.randomUUID();
+  store.write(ANONYMOUS_ID_STORAGE_KEY, created);
+  return created;
+}

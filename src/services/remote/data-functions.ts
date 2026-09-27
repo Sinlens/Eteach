@@ -7,6 +7,7 @@ import { translationRecordSchema } from "@/contracts/translation";
 
 import {
   clearHistoryCall,
+  deleteProfileCall,
   ensureProfileCall,
   listHistoryCall,
   listSavedPhrasesCall,
@@ -124,6 +125,21 @@ export const removeSavedPhraseFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const profileId = await resolveProfileId(data.anonymousKey);
     await callRpc<unknown>(removeSavedPhraseCall(profileId, data.id));
+  });
+
+/**
+ * The delete path.
+ *
+ * `ensure_profile` runs first even though the row is about to go: it resolves
+ * the key to exactly one profile id, and creating one that is deleted in the
+ * next statement costs nothing. Working from the key alone would mean a second
+ * place that knows how a key maps to a profile.
+ */
+export const deleteProfileFn = createServerFn({ method: "POST" })
+  .validator((input: unknown) => z.object({ anonymousKey: anonymousKeySchema }).parse(input))
+  .handler(async ({ data }) => {
+    const profileId = await resolveProfileId(data.anonymousKey);
+    await callRpc<unknown>(deleteProfileCall(profileId));
   });
 
 export const submitFeedbackFn = createServerFn({ method: "POST" })

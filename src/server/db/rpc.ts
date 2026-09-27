@@ -35,6 +35,7 @@ export const RPC_FUNCTIONS = [
   "list_saved_phrases",
   "record_feedback",
   "record_outcome",
+  "delete_profile",
 ] as const;
 
 export function ensureProfileCall(anonymousKey: string): RpcCall {
@@ -136,6 +137,14 @@ export function recordFeedbackCall(input: {
       p_translation_id: input.translationId,
       p_feedback_type: input.feedback,
     },
+  };
+}
+
+/** Removes the profile; `on delete cascade` takes everything hanging off it. */
+export function deleteProfileCall(profileId: string): RpcCall {
+  return {
+    fn: "delete_profile",
+    args: { p_profile_id: profileId },
   };
 }
 
