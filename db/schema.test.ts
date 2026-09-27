@@ -190,8 +190,18 @@ describe("saved phrases", () => {
   });
 });
 
+/** The taxonomies: public to read, and pointed at by a foreign key from
+ * everything else, which is what makes losing a row unrecoverable. */
+const REFERENCE_TABLES = [
+  "careers",
+  "input_languages",
+  "locales",
+  "phrase_cards",
+  "tones",
+] as const;
+
 describe("access control", () => {
-  test("enables row level security on every table holding user data", async ({ db }) => {
+  test("enables row level security on every table in the public schema", async ({ db }) => {
     const { rows } = await db.query<{ tablename: string }>(
       `select tablename from pg_tables
        where schemaname = 'public' and rowsecurity = true
@@ -199,9 +209,14 @@ describe("access control", () => {
     );
 
     expect(rows.map((row) => row.tablename)).toEqual([
+      "careers",
+      "input_languages",
       "learning_signals",
+      "locales",
+      "phrase_cards",
       "profiles",
       "saved_phrases",
+      "tones",
       "translation_outcomes",
       "translations",
       "user_feedback",
@@ -209,13 +224,76 @@ describe("access control", () => {
     ]);
   });
 
-  test("defines no permissive policies yet, so nothing is reachable without the server", async ({
+  test("leaves every table holding user data without a policy, which is deny-all", async ({
     db,
   }) => {
-    const { rows } = await db.query<{ count: number }>(
-      "select count(*)::int as count from pg_policies where schemaname = 'public'",
+    const { rows } = await db.query<{ tablename: string }>(
+      "select distinct tablename from pg_policies where schemaname = 'public' order by tablename",
     );
 
-    expect(rows[0]?.count).toBe(0);
+    // Reference data is the only thing a policy reopens. Nothing a user wrote
+    // has one, so it stays reachable only through the server (§24).
+    expect(rows.map((row) => row.tablename)).toEqual([...REFERENCE_TABLES]);
+  });
+
+  test("reopens the reference tables for reading only, and for no other command", async ({ db }) => {
+    const { rows } = await db.query<{ tablename: string; cmd: string; roles: string }>(
+      `select tablename, cmd, roles::text as roles from pg_policies
+       where schemaname = 'public' order by tablename`,
+    );
+
+    expect(rows).toHaveLength(REFERENCE_TABLES.length);
+
+    for (const row of rows) {
+      expect(row.cmd).toBe("SELECT");
+      expect(row.roles).toBe("{anon,authenticated}");
+    }
+  });
+});
+
+/**
+ * The anon key ships to the browser, so `anon` is effectively the public. These
+ * cases are the reason the lockdown migration exists: Supabase grants every
+ * privilege on a new table in `public` to that role, which left the taxonomies
+ * deletable by anyone holding a key that is public by design.
+ *
+ * Each rejection runs inside a savepoint because a failed statement aborts the
+ * surrounding transaction, and the fixture shares one engine across cases.
+ */
+describe("the reference tables as seen by the public", () => {
+  test("lets the anon role read the taxonomies", async ({ db }) => {
+    await db.exec("set local role anon");
+
+    const { rows } = await db.query<{ id: string }>("select id from careers order by sort_order");
+
+    expect(rows.map((row) => row.id)).toEqual([...CAREER_IDS]);
+  });
+
+  test("refuses an insert from the anon role", async ({ db }) => {
+    await db.exec("set local role anon");
+
+    await expect(
+      db.query("insert into careers (id, label, sort_order) values ('devrel', 'DevRel', 99)"),
+    ).rejects.toThrow();
+  });
+
+  test("refuses a delete from the anon role on every reference table", async ({ db }) => {
+    await db.exec("set local role anon");
+
+    for (const table of REFERENCE_TABLES) {
+      await db.exec("savepoint probe");
+      await expect(db.query(`delete from ${table}`)).rejects.toThrow();
+      await db.exec("rollback to savepoint probe");
+    }
+  });
+
+  test("refuses a truncate from the anon role on every reference table", async ({ db }) => {
+    await db.exec("set local role anon");
+
+    for (const table of REFERENCE_TABLES) {
+      await db.exec("savepoint probe");
+      await expect(db.query(`truncate ${table}`)).rejects.toThrow();
+      await db.exec("rollback to savepoint probe");
+    }
   });
 });
