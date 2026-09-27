@@ -49,6 +49,13 @@ async function seedEverything(db: Parameters<typeof insertProfile>[0], profileId
      values ($1, 'rw_01', 'copied', 'Could you review this?')`,
     [profileId],
   );
+
+  // Holds an email address, so it is squarely personal.
+  await db.query(
+    `insert into pending_sign_ins (profile_id, email, expires_at)
+     values ($1, 'someone@example.com', now() + interval '15 minutes')`,
+    [profileId],
+  );
 }
 
 const CHILD_TABLES = [
@@ -57,6 +64,7 @@ const CHILD_TABLES = [
   "user_feedback",
   "learning_signals",
   "translation_outcomes",
+  "pending_sign_ins",
 ] as const;
 
 describe("deleting everything a person stored", () => {

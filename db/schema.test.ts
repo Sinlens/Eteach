@@ -213,6 +213,7 @@ describe("access control", () => {
       "input_languages",
       "learning_signals",
       "locales",
+      "pending_sign_ins",
       "phrase_cards",
       "profiles",
       "saved_phrases",

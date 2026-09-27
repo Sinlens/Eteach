@@ -28,6 +28,7 @@ export type RpcCall = {
 export const RPC_FUNCTIONS = [
   "ensure_profile",
   "merge_profile",
+  "start_sign_in",
   "record_translation",
   "list_history",
   "clear_history",
@@ -60,6 +61,24 @@ export function mergeProfileCall(input: {
     args: {
       p_donor_profile_id: input.donorProfileId,
       p_survivor_profile_id: input.survivorProfileId,
+    },
+  };
+}
+
+/**
+ * How long a sign-in link stays usable. It lives here rather than as a default
+ * in the function, because how long a link should last is a decision about the
+ * product, and two places holding it is one place to forget.
+ */
+export const SIGN_IN_TTL_MINUTES = 15;
+
+export function startSignInCall(input: { profileId: string; email: string }): RpcCall {
+  return {
+    fn: "start_sign_in",
+    args: {
+      p_profile_id: input.profileId,
+      p_email: input.email,
+      p_ttl_minutes: SIGN_IN_TTL_MINUTES,
     },
   };
 }
