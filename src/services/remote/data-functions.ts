@@ -18,6 +18,7 @@ import {
 } from "@/server/db/rpc";
 import { toSavedPhrase, toTranslationRecord } from "@/server/db/rows";
 import { callRpc } from "@/server/db/supabase";
+import { ensureDeviceKey, resetDeviceKey } from "@/server/identity";
 
 /**
  * The server boundary.
@@ -26,15 +27,16 @@ import { callRpc } from "@/server/db/supabase";
  * device's profile and forward to a database function. The service role key
  * stays on this side (§24).
  *
- * Input is validated here too — an anonymous key arrives from browser storage,
- * which is editable by anyone sitting at the machine.
+ * Nothing here takes an identity. It used to arrive in the payload, where a
+ * schema could check the shape of a key and never whether the caller owned it —
+ * a caller said who it was and was believed. The key now comes from a cookie
+ * this side sets, so these signatures carry only what the caller is actually
+ * entitled to decide.
  */
-const anonymousKeySchema = z.string().uuid();
-
 const HISTORY_LIMIT_CEILING = 50;
 
-async function resolveProfileId(anonymousKey: string): Promise<string> {
-  return callRpc<string>(ensureProfileCall(anonymousKey));
+async function resolveProfileId(): Promise<string> {
+  return callRpc<string>(ensureProfileCall(ensureDeviceKey()));
 }
 
 function parseRows(value: unknown): Record<string, unknown>[] {
@@ -43,26 +45,19 @@ function parseRows(value: unknown): Record<string, unknown>[] {
 
 export const listHistoryFn = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
-    z
-      .object({
-        anonymousKey: anonymousKeySchema,
-        limit: z.number().int().positive().max(HISTORY_LIMIT_CEILING),
-      })
-      .parse(input),
+    z.object({ limit: z.number().int().positive().max(HISTORY_LIMIT_CEILING) }).parse(input),
   )
   .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
+    const profileId = await resolveProfileId();
     const rows = await callRpc<unknown>(listHistoryCall(profileId, data.limit));
 
     return parseRows(rows).map(toTranslationRecord);
   });
 
 export const recordTranslationFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z.object({ anonymousKey: anonymousKeySchema, record: translationRecordSchema }).parse(input),
-  )
+  .validator((input: unknown) => z.object({ record: translationRecordSchema }).parse(input))
   .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
+    const profileId = await resolveProfileId();
     const { record } = data;
 
     await callRpc<unknown>(
@@ -78,28 +73,22 @@ export const recordTranslationFn = createServerFn({ method: "POST" })
     );
   });
 
-export const clearHistoryFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ anonymousKey: anonymousKeySchema }).parse(input))
-  .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
-    await callRpc<unknown>(clearHistoryCall(profileId));
-  });
+export const clearHistoryFn = createServerFn({ method: "POST" }).handler(async () => {
+  const profileId = await resolveProfileId();
+  await callRpc<unknown>(clearHistoryCall(profileId));
+});
 
-export const listSavedPhrasesFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ anonymousKey: anonymousKeySchema }).parse(input))
-  .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
-    const rows = await callRpc<unknown>(listSavedPhrasesCall(profileId));
+export const listSavedPhrasesFn = createServerFn({ method: "POST" }).handler(async () => {
+  const profileId = await resolveProfileId();
+  const rows = await callRpc<unknown>(listSavedPhrasesCall(profileId));
 
-    return parseRows(rows).map(toSavedPhrase);
-  });
+  return parseRows(rows).map(toSavedPhrase);
+});
 
 export const savePhraseFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z.object({ anonymousKey: anonymousKeySchema, phrase: savedPhraseSchema }).parse(input),
-  )
+  .validator((input: unknown) => z.object({ phrase: savedPhraseSchema }).parse(input))
   .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
+    const profileId = await resolveProfileId();
     const { phrase } = data;
 
     await callRpc<unknown>(
@@ -119,11 +108,9 @@ export const savePhraseFn = createServerFn({ method: "POST" })
   });
 
 export const removeSavedPhraseFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z.object({ anonymousKey: anonymousKeySchema, id: z.string().trim().min(1) }).parse(input),
-  )
+  .validator((input: unknown) => z.object({ id: z.string().trim().min(1) }).parse(input))
   .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
+    const profileId = await resolveProfileId();
     await callRpc<unknown>(removeSavedPhraseCall(profileId, data.id));
   });
 
@@ -134,26 +121,28 @@ export const removeSavedPhraseFn = createServerFn({ method: "POST" })
  * the key to exactly one profile id, and creating one that is deleted in the
  * next statement costs nothing. Working from the key alone would mean a second
  * place that knows how a key maps to a profile.
+ *
+ * The cookie is rotated here rather than in the browser, because the key now
+ * lives somewhere the browser cannot reach. Leaving it in place would leave the
+ * next request rebuilding a profile against the key that was just emptied.
  */
-export const deleteProfileFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => z.object({ anonymousKey: anonymousKeySchema }).parse(input))
-  .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
-    await callRpc<unknown>(deleteProfileCall(profileId));
-  });
+export const deleteProfileFn = createServerFn({ method: "POST" }).handler(async () => {
+  const profileId = await resolveProfileId();
+  await callRpc<unknown>(deleteProfileCall(profileId));
+  resetDeviceKey();
+});
 
 export const submitFeedbackFn = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        anonymousKey: anonymousKeySchema,
         translationId: z.string().trim().min(1),
         feedback: feedbackTypeSchema,
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const profileId = await resolveProfileId(data.anonymousKey);
+    const profileId = await resolveProfileId();
 
     await callRpc<unknown>(
       recordFeedbackCall({
