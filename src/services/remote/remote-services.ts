@@ -1,9 +1,10 @@
 import type { FeedbackRequest } from "@/contracts/feedback";
 import type { SavedPhrase } from "@/contracts/saved-phrase";
 import type { TranslationRecord } from "@/contracts/translation";
-import { ensureAnonymousId } from "@/lib/anonymous-id";
+import { ensureAnonymousId, resetAnonymousId } from "@/lib/anonymous-id";
 import {
   clearHistoryFn,
+  deleteProfileFn,
   listHistoryFn,
   listSavedPhrasesFn,
   recordTranslationFn,
@@ -11,9 +12,11 @@ import {
   savePhraseFn,
   submitFeedbackFn,
 } from "./data-functions";
+import { clearBrowserContent } from "@/services/browser-content";
 import type { FeedbackService } from "@/services/feedback-service";
 import type { HistoryService } from "@/services/history-service";
 import type { SavedPhraseService } from "@/services/saved-phrase-service";
+import type { StoredDataService } from "@/services/stored-data-service";
 
 /**
  * The same ports, backed by the database instead of browser storage.
@@ -54,6 +57,25 @@ export function createRemoteSavedPhraseService(): SavedPhraseService {
 
     async remove(id: string): Promise<void> {
       await removeSavedPhraseFn({ data: { anonymousKey: ensureAnonymousId(), id } });
+    },
+  };
+}
+
+export function createRemoteStoredDataService(): StoredDataService {
+  return {
+    async deleteEverything(): Promise<void> {
+      // Order is the whole correctness argument. The server call goes first and
+      // nothing local changes until it has returned: rotating the key on a
+      // failed request would leave the rows in the database with the only key
+      // that reaches them already thrown away — unreachable, undeletable, and
+      // reported to the person as deleted.
+      await deleteProfileFn({ data: { anonymousKey: ensureAnonymousId() } });
+
+      // The database is not the only place content lives. A browser that ran in
+      // `mock` mode still holds those entries, and this mode never reads them
+      // again — so they would quietly outlive a delete that promised otherwise.
+      clearBrowserContent();
+      resetAnonymousId();
     },
   };
 }

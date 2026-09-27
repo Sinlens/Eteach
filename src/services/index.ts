@@ -4,18 +4,23 @@ import { createMockFeedbackService } from "./mock/mock-feedback-service";
 import { createMockHistoryService } from "./mock/mock-history-service";
 import { createMockRewriteService } from "./mock/mock-rewrite-service";
 import { createMockSavedPhraseService } from "./mock/mock-saved-phrase-service";
+import { createMockStoredDataService } from "./mock/mock-stored-data-service";
 import {
   createRemoteFeedbackService,
   createRemoteHistoryService,
   createRemoteSavedPhraseService,
+  createRemoteStoredDataService,
 } from "./remote/remote-services";
 import type { RewriteService } from "./rewrite-service";
 import type { SavedPhraseService } from "./saved-phrase-service";
+import type { StoredDataService } from "./stored-data-service";
 
 export * from "./feedback-service";
 export * from "./history-service";
 export * from "./rewrite-service";
 export * from "./saved-phrase-service";
+export * from "./stored-data-service";
+export { createMockStoredDataService } from "./mock/mock-stored-data-service";
 export { createMockRewriteService } from "./mock/mock-rewrite-service";
 export type { MockRewriteServiceOptions } from "./mock/mock-rewrite-service";
 export { createMockFeedbackService } from "./mock/mock-feedback-service";
@@ -59,3 +64,7 @@ export const savedPhraseService: SavedPhraseService = remote
 export const feedbackService: FeedbackService = remote
   ? createRemoteFeedbackService()
   : createMockFeedbackService();
+
+export const storedDataService: StoredDataService = remote
+  ? createRemoteStoredDataService()
+  : createMockStoredDataService();
