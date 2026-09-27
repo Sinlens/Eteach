@@ -19,6 +19,25 @@ function readSqlFiles(directory: string): string[] {
 let instance: PGlite | undefined;
 
 /**
+ * The Supabase platform context the migrations are written against.
+ *
+ * PGlite is bare PostgreSQL: the `anon` and `authenticated` roles every Supabase
+ * project ships with do not exist here, and neither does the default privilege
+ * rule that hands them every privilege on each new table in `public`.
+ *
+ * Both are reproduced here rather than in a migration. A migration creating
+ * platform roles would be a fiction on a real project — and the blanket grant is
+ * the exact exposure the reference-data lockdown closes, so it has to be present
+ * before the migrations run. Without it the lockdown would be asserted against a
+ * database that was never open in the first place.
+ */
+const SUPABASE_PLATFORM = `
+  create role anon nologin noinherit;
+  create role authenticated nologin noinherit;
+  alter default privileges in schema public grant all on tables to anon, authenticated;
+`;
+
+/**
  * One PostgreSQL engine per test file, built on first use.
  *
  * Migrations are discovered from disk and applied in filename order, so adding
@@ -28,6 +47,8 @@ async function database(): Promise<PGlite> {
   if (instance) return instance;
 
   const db = new PGlite();
+  await db.exec(SUPABASE_PLATFORM);
+
   for (const sql of readSqlFiles(MIGRATIONS_DIR)) {
     await db.exec(sql);
   }
