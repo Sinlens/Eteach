@@ -236,6 +236,32 @@ describe("access control", () => {
     expect(rows.map((row) => row.tablename)).toEqual([...REFERENCE_TABLES]);
   });
 
+  /**
+   * A function without a pinned `search_path` resolves its table names against
+   * whatever the caller happens to have set. Pinning it to the empty string
+   * means every name inside the body has to say which schema it means, which is
+   * why the bodies are fully qualified — the two go together, and neither is
+   * worth much alone.
+   */
+  test("pins the search_path on every function", async ({ db }) => {
+    const { rows } = await db.query<{ name: string; proconfig: string[] | null }>(
+      `select n.nspname || '.' || p.proname as name, p.proconfig
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname in ('public', 'maintenance') and p.prokind = 'f'
+       order by 1`,
+    );
+
+    expect(rows.length).toBeGreaterThan(0);
+
+    for (const row of rows) {
+      expect(
+        (row.proconfig ?? []).some((entry) => entry.startsWith("search_path=")),
+        `${row.name} does not pin its search_path`,
+      ).toBe(true);
+    }
+  });
+
   test("reopens the reference tables for reading only, and for no other command", async ({
     db,
   }) => {
