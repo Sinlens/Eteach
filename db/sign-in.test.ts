@@ -30,31 +30,58 @@ async function startSignIn(
 async function completeSignIn(
   db: PGlite,
   pendingId: string,
-  survivorProfileId: string,
+  userId: string,
   email = "someone@example.com",
-) {
-  await db.query("select complete_sign_in($1, $2, $3)", [pendingId, email, survivorProfileId]);
+): Promise<string> {
+  const { rows } = await db.query<{ complete_sign_in: string }>(
+    "select complete_sign_in($1, $2, $3) as complete_sign_in",
+    [pendingId, email, userId],
+  );
+
+  const id = rows[0]?.complete_sign_in;
+  if (!id) throw new Error("sign-in did not return a profile");
+  return id;
 }
 
-async function accountProfile(db: PGlite, email = "someone@example.com"): Promise<string> {
+async function createUser(db: PGlite, email = "someone@example.com"): Promise<string> {
   const { rows } = await db.query<{ id: string }>(
     "insert into users (email) values ($1) returning id",
     [email],
   );
 
-  const { rows: profiles } = await db.query<{ id: string }>(
+  const id = rows[0]?.id;
+  if (!id) throw new Error("user was not created");
+  return id;
+}
+
+/** Somebody who has signed in before, so their account already has a profile. */
+async function accountProfile(
+  db: PGlite,
+  email = "someone@example.com",
+): Promise<{ userId: string; profileId: string }> {
+  const userId = await createUser(db, email);
+  const { rows } = await db.query<{ id: string }>(
     "insert into profiles (anonymous_key, user_id) values ($1, $2) returning id",
-    [`account_${email}`, rows[0]?.id],
+    [`account_${email}`, userId],
   );
 
-  const id = profiles[0]?.id;
-  if (!id) throw new Error("account profile was not created");
-  return id;
+  const profileId = rows[0]?.id;
+  if (!profileId) throw new Error("account profile was not created");
+  return { userId, profileId };
 }
 
 async function countPending(db: PGlite, profileId: string): Promise<number> {
   const { rows } = await db.query<{ count: number }>(
     "select count(*)::int as count from pending_sign_ins where profile_id = $1",
+    [profileId],
+  );
+
+  return rows[0]?.count ?? 0;
+}
+
+async function countTranslations(db: PGlite, profileId: string): Promise<number> {
+  const { rows } = await db.query<{ count: number }>(
+    "select count(*)::int as count from translations where profile_id = $1",
     [profileId],
   );
 
@@ -89,20 +116,41 @@ describe("start_sign_in", () => {
 });
 
 describe("complete_sign_in", () => {
+  /**
+   * The first sign-in of all. There is no account profile to merge into, and
+   * creating a fresh one would strand everything collected before the account
+   * existed — so the profile already in front of the person becomes it. This is
+   * what the initial schema meant by attaching a `user_id` to the existing row.
+   */
+  test("promotes the device profile when the account has none yet", async ({ db }) => {
+    const laptop = await insertProfile(db, "laptop");
+    const userId = await createUser(db);
+    await insertTranslation(db, laptop, "rw_laptop");
+
+    const pendingId = await startSignIn(db, laptop);
+    const survivor = await completeSignIn(db, pendingId, userId);
+
+    expect(survivor).toBe(laptop);
+    expect(await countTranslations(db, laptop)).toBe(1);
+
+    const { rows } = await db.query<{ user_id: string }>(
+      "select user_id from profiles where id = $1",
+      [laptop],
+    );
+
+    expect(rows[0]?.user_id).toBe(userId);
+  });
+
   test("merges the device that asked, not the one that opened the link", async ({ db }) => {
     const laptop = await insertProfile(db, "laptop");
     const account = await accountProfile(db);
     await insertTranslation(db, laptop, "rw_laptop");
 
     const pendingId = await startSignIn(db, laptop);
-    await completeSignIn(db, pendingId, account);
+    const survivor = await completeSignIn(db, pendingId, account.userId);
 
-    const { rows } = await db.query<{ count: number }>(
-      "select count(*)::int as count from translations where profile_id = $1",
-      [account],
-    );
-
-    expect(rows[0]?.count).toBe(1);
+    expect(survivor).toBe(account.profileId);
+    expect(await countTranslations(db, account.profileId)).toBe(1);
   });
 
   /**
@@ -116,7 +164,7 @@ describe("complete_sign_in", () => {
     const account = await accountProfile(db);
 
     const pendingId = await startSignIn(db, laptop);
-    await completeSignIn(db, pendingId, account);
+    await completeSignIn(db, pendingId, account.userId);
 
     const { rows } = await db.query<{ completed_at: Date | null; profile_id: string }>(
       "select completed_at, profile_id from pending_sign_ins where id = $1",
@@ -124,45 +172,7 @@ describe("complete_sign_in", () => {
     );
 
     expect(rows[0]?.completed_at).not.toBeNull();
-    expect(rows[0]?.profile_id).toBe(account);
-  });
-
-  /**
-   * Somebody who steals a pending reference could otherwise sign in with their
-   * own address and carry the reference of a device that is not theirs,
-   * folding a stranger's history into their account.
-   */
-  test("refuses an address other than the one that asked", async ({ db }) => {
-    const laptop = await insertProfile(db, "laptop");
-    const account = await accountProfile(db, "attacker@example.com");
-    const pendingId = await startSignIn(db, laptop, "victim@example.com");
-
-    await expect(completeSignIn(db, pendingId, account, "attacker@example.com")).rejects.toThrow();
-  });
-
-  test("refuses a reference that has expired", async ({ db }) => {
-    const laptop = await insertProfile(db, "laptop");
-    const account = await accountProfile(db);
-    const pendingId = await startSignIn(db, laptop, "someone@example.com", -1);
-
-    await expect(completeSignIn(db, pendingId, account)).rejects.toThrow();
-  });
-
-  test("refuses a reference that was already used", async ({ db }) => {
-    const laptop = await insertProfile(db, "laptop");
-    const account = await accountProfile(db);
-    const pendingId = await startSignIn(db, laptop);
-    await completeSignIn(db, pendingId, account);
-
-    await expect(completeSignIn(db, pendingId, account)).rejects.toThrow();
-  });
-
-  test("refuses a reference nobody issued", async ({ db }) => {
-    const account = await accountProfile(db);
-
-    await expect(
-      completeSignIn(db, "00000000-0000-4000-8000-000000000000", account),
-    ).rejects.toThrow();
+    expect(rows[0]?.profile_id).toBe(account.profileId);
   });
 
   /**
@@ -173,9 +183,11 @@ describe("complete_sign_in", () => {
    */
   test("completes without merging on the device that already holds the account", async ({ db }) => {
     const account = await accountProfile(db);
-    const pendingId = await startSignIn(db, account);
+    const pendingId = await startSignIn(db, account.profileId);
 
-    await completeSignIn(db, pendingId, account);
+    const survivor = await completeSignIn(db, pendingId, account.userId);
+
+    expect(survivor).toBe(account.profileId);
 
     const { rows } = await db.query<{ completed_at: Date | null }>(
       "select completed_at from pending_sign_ins where id = $1",
@@ -187,22 +199,82 @@ describe("complete_sign_in", () => {
 
   /**
    * A shared machine where somebody else is signed in. Their profile holds
-   * their `user_id`, so it is not an anonymous donor and none of it belongs to
-   * whoever is signing in now.
+   * their `user_id`, so it is neither an anonymous donor to merge nor a profile
+   * to promote — none of what is on it belongs to whoever is signing in now.
    */
   test("leaves another account's data alone on a shared device", async ({ db }) => {
     const theirs = await accountProfile(db, "them@example.com");
-    const mine = await accountProfile(db, "me@example.com");
-    await insertTranslation(db, theirs, "rw_theirs");
+    const mine = await createUser(db, "me@example.com");
+    await insertTranslation(db, theirs.profileId, "rw_theirs");
 
-    const pendingId = await startSignIn(db, theirs, "me@example.com");
-    await completeSignIn(db, pendingId, mine, "me@example.com");
+    const pendingId = await startSignIn(db, theirs.profileId, "me@example.com");
+    const survivor = await completeSignIn(db, pendingId, mine, "me@example.com");
 
-    const { rows } = await db.query<{ count: number }>(
-      "select count(*)::int as count from translations where profile_id = $1",
-      [theirs],
+    expect(survivor).not.toBe(theirs.profileId);
+    expect(await countTranslations(db, theirs.profileId)).toBe(1);
+    expect(await countTranslations(db, survivor)).toBe(0);
+  });
+
+  test("gives a signer with no profile one of their own on a shared device", async ({ db }) => {
+    const theirs = await accountProfile(db, "them@example.com");
+    const mine = await createUser(db, "me@example.com");
+
+    const pendingId = await startSignIn(db, theirs.profileId, "me@example.com");
+    const survivor = await completeSignIn(db, pendingId, mine, "me@example.com");
+
+    const { rows } = await db.query<{ user_id: string }>(
+      "select user_id from profiles where id = $1",
+      [survivor],
     );
 
-    expect(rows[0]?.count).toBe(1);
+    expect(rows[0]?.user_id).toBe(mine);
+  });
+
+  test("returns the same profile when that account signed in here before", async ({ db }) => {
+    const account = await accountProfile(db);
+    const laptop = await insertProfile(db, "laptop");
+
+    const pendingId = await startSignIn(db, laptop);
+    const survivor = await completeSignIn(db, pendingId, account.userId);
+
+    expect(survivor).toBe(account.profileId);
+  });
+
+  /**
+   * Somebody who steals a pending reference could otherwise sign in with their
+   * own address and carry the reference of a device that is not theirs,
+   * folding a stranger's history into their account.
+   */
+  test("refuses an address other than the one that asked", async ({ db }) => {
+    const laptop = await insertProfile(db, "laptop");
+    const attacker = await createUser(db, "attacker@example.com");
+    const pendingId = await startSignIn(db, laptop, "victim@example.com");
+
+    await expect(completeSignIn(db, pendingId, attacker, "attacker@example.com")).rejects.toThrow();
+  });
+
+  test("refuses a reference that has expired", async ({ db }) => {
+    const laptop = await insertProfile(db, "laptop");
+    const userId = await createUser(db);
+    const pendingId = await startSignIn(db, laptop, "someone@example.com", -1);
+
+    await expect(completeSignIn(db, pendingId, userId)).rejects.toThrow();
+  });
+
+  test("refuses a reference that was already used", async ({ db }) => {
+    const laptop = await insertProfile(db, "laptop");
+    const userId = await createUser(db);
+    const pendingId = await startSignIn(db, laptop);
+    await completeSignIn(db, pendingId, userId);
+
+    await expect(completeSignIn(db, pendingId, userId)).rejects.toThrow();
+  });
+
+  test("refuses a reference nobody issued", async ({ db }) => {
+    const userId = await createUser(db);
+
+    await expect(
+      completeSignIn(db, "00000000-0000-4000-8000-000000000000", userId),
+    ).rejects.toThrow();
   });
 });

@@ -86,12 +86,20 @@ the page cannot read; in `mock` mode the browser is the database and mints its
 own (`src/lib/anonymous-id.ts`). Neither is a credential — a key identifies, it
 does not prove — which is what the section after this one is for.
 
-Signing in merges, it does not attach. `profiles_user_id_key` allows one
-`user_id` per row, so writing it onto the profile in front of you works for the
-first device and raises a unique violation on the second — an account is not a
-device. The profile already holding `user_id` survives with its `profiles.id`,
-because that is the key every child table points at and the one the account's
-other devices already carry; the device's profile is the donor, its rows are
+Signing in resolves to one profile, and which one depends on what is already
+there. `profiles_user_id_key` allows one `user_id` per row, so writing it onto
+the profile in front of you works for the first device and raises a unique
+violation on the second — an account is not a device. So the first sign-in
+promotes the profile already in front of the person rather than starting a new
+one beside it, which would strand everything collected before the account
+existed. Every device after that merges. On a machine where somebody else is
+signed in there is nothing to promote and nothing that belongs to the person
+signing in, so the account starts a profile of its own and the device keeps what
+was on it.
+
+The profile already holding `user_id` survives with its `profiles.id`, because
+that is the key every child table points at and the one the account's other
+devices already carry; the device's profile is the donor, its rows are
 re-parented and the row itself is deleted.
 
 The merge runs without asking. Whoever sits at that browser already reads the
