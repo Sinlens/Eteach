@@ -77,14 +77,14 @@ rather than `supabase/seed.sql`, because `seed.sql` only runs on a local
 
 ### Identity
 
-Identity is `profiles`, not `users`. There is no auth provider yet, so a device
-generates a UUID, keeps it in `localStorage` (`src/lib/anonymous-id.ts`) and
-sends it with every request; `ensure_profile` turns it into a row on first
-contact. Every table holding personal rows references `profiles` rather than a
-user, so adding auth backfills nothing. What that key is not is a credential:
-the client mints it, nothing verifies it, and it never rotates. That holds while
-no account is behind it, which is why the model below is settled before any of
-it is built.
+Identity is `profiles`, not `users`. There is no auth provider yet, so every row
+hangs off a key that stands for a device rather than a person, and
+`ensure_profile` turns that key into a row on first contact. Every table holding
+personal rows references `profiles` rather than a user, so adding auth backfills
+nothing. In `supabase` mode the server issues the key and keeps it in a cookie
+the page cannot read; in `mock` mode the browser is the database and mints its
+own (`src/lib/anonymous-id.ts`). Neither is a credential — a key identifies, it
+does not prove — which is what the section after this one is for.
 
 Signing in merges, it does not attach. `profiles_user_id_key` allows one
 `user_id` per row, so writing it onto the profile in front of you works for the
@@ -116,9 +116,12 @@ both sides collides: the survivor's row wins, and the copy that goes takes a
 is worth writing down because it is structural rather than lucky —
 `translations.id` is a global primary key, so a translation belongs to exactly
 one profile and `user_feedback_one_per_type` never has two rows to reconcile.
-Scoping that key per profile would end that. The merge is one transaction for
-the reason `delete_profile` is one statement, and idempotent because a sign-in
-gets retried and a donor already gone is not an error.
+Scoping that key per profile would end that. All of it lives in `merge_profile`,
+which is one transaction for the reason `delete_profile` is one statement, and
+idempotent because a sign-in gets retried and a donor already gone is not an
+error. It refuses two things outright: a profile folded into itself, which `on
+delete cascade` would empty, and a donor that already holds a `user_id`, which
+would be two accounts and the loss of one.
 
 The session is part of that change, not a later one. `ensure_profile` creates a
 profile when it finds none, which is correct for a first visit and a trap after
