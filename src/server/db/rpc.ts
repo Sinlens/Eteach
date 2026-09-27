@@ -27,6 +27,7 @@ export type RpcCall = {
 /** Used to assert that SQL and TypeScript know about the same set of calls. */
 export const RPC_FUNCTIONS = [
   "ensure_profile",
+  "merge_profile",
   "record_translation",
   "list_history",
   "clear_history",
@@ -42,6 +43,24 @@ export function ensureProfileCall(anonymousKey: string): RpcCall {
   return {
     fn: "ensure_profile",
     args: { p_anonymous_key: anonymousKey },
+  };
+}
+
+/**
+ * The donor is the anonymous profile and it does not survive the call. Passing
+ * these the wrong way round deletes the account, so they are named rather than
+ * positional everywhere above this line.
+ */
+export function mergeProfileCall(input: {
+  donorProfileId: string;
+  survivorProfileId: string;
+}): RpcCall {
+  return {
+    fn: "merge_profile",
+    args: {
+      p_donor_profile_id: input.donorProfileId,
+      p_survivor_profile_id: input.survivorProfileId,
+    },
   };
 }
 

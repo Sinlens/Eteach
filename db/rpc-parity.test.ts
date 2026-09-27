@@ -6,6 +6,7 @@ import {
   deleteProfileCall,
   ensureProfileCall,
   listHistoryCall,
+  mergeProfileCall,
   listSavedPhrasesCall,
   recordFeedbackCall,
   recordOutcomeCall,
@@ -28,6 +29,10 @@ import { test } from "./test-support";
  */
 const SAMPLE_CALLS: RpcCall[] = [
   ensureProfileCall("device_1"),
+  mergeProfileCall({
+    donorProfileId: "00000000-0000-0000-0000-000000000000",
+    survivorProfileId: "00000000-0000-0000-0000-000000000001",
+  }),
   recordTranslationCall({
     profileId: "00000000-0000-0000-0000-000000000000",
     translationId: "rw_01",
