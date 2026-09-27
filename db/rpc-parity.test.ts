@@ -3,6 +3,7 @@ import { describe, expect } from "vitest";
 import {
   RPC_FUNCTIONS,
   clearHistoryCall,
+  completeSignInCall,
   deleteProfileCall,
   ensureProfileCall,
   listHistoryCall,
@@ -37,6 +38,11 @@ const SAMPLE_CALLS: RpcCall[] = [
   startSignInCall({
     profileId: "00000000-0000-0000-0000-000000000000",
     email: "someone@example.com",
+  }),
+  completeSignInCall({
+    pendingId: "00000000-0000-0000-0000-000000000002",
+    email: "someone@example.com",
+    survivorProfileId: "00000000-0000-0000-0000-000000000001",
   }),
   recordTranslationCall({
     profileId: "00000000-0000-0000-0000-000000000000",

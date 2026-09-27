@@ -29,6 +29,7 @@ export const RPC_FUNCTIONS = [
   "ensure_profile",
   "merge_profile",
   "start_sign_in",
+  "complete_sign_in",
   "record_translation",
   "list_history",
   "clear_history",
@@ -199,6 +200,21 @@ export function recordOutcomeCall(input: {
       p_translation_id: input.translationId,
       p_action: input.action,
       p_accepted_version: input.acceptedVersion,
+    },
+  };
+}
+
+export function completeSignInCall(input: {
+  pendingId: string;
+  email: string;
+  survivorProfileId: string;
+}): RpcCall {
+  return {
+    fn: "complete_sign_in",
+    args: {
+      p_pending_id: input.pendingId,
+      p_email: input.email,
+      p_survivor_profile_id: input.survivorProfileId,
     },
   };
 }
