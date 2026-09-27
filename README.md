@@ -81,6 +81,11 @@ Every table holding user data has row level security enabled and no policies at
 all, which denies everything. The only way in is the server, which holds the
 service role key. Real policies get written together with the auth provider.
 
+Every function pins `search_path = ''` and names its schemas in full, so a
+caller cannot decide which `profiles` a function means. That matters less while
+they are all `SECURITY INVOKER`; it matters a great deal the day one of them is
+not, which is why `db/schema.test.ts` asserts the pin rather than trusting it.
+
 The taxonomies are the exception: they are public reference data, so each one
 carries a single `select` policy and nothing else. Their write privileges are
 revoked at the grant level as well, because Supabase hands `anon` every
