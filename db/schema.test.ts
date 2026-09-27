@@ -236,7 +236,9 @@ describe("access control", () => {
     expect(rows.map((row) => row.tablename)).toEqual([...REFERENCE_TABLES]);
   });
 
-  test("reopens the reference tables for reading only, and for no other command", async ({ db }) => {
+  test("reopens the reference tables for reading only, and for no other command", async ({
+    db,
+  }) => {
     const { rows } = await db.query<{ tablename: string; cmd: string; roles: string }>(
       `select tablename, cmd, roles::text as roles from pg_policies
        where schemaname = 'public' order by tablename`,
