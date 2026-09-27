@@ -75,6 +75,64 @@ Reference data (careers, tones, locales, phrase cards) ships as a migration
 rather than `supabase/seed.sql`, because `seed.sql` only runs on a local
 `db reset` and those rows are the targets of foreign keys the app needs.
 
+### Identity
+
+Identity is `profiles`, not `users`. There is no auth provider yet, so a device
+generates a UUID, keeps it in `localStorage` (`src/lib/anonymous-id.ts`) and
+sends it with every request; `ensure_profile` turns it into a row on first
+contact. Every table holding personal rows references `profiles` rather than a
+user, so adding auth backfills nothing. What that key is not is a credential:
+the client mints it, nothing verifies it, and it never rotates. That holds while
+no account is behind it, which is why the model below is settled before any of
+it is built.
+
+Signing in merges, it does not attach. `profiles_user_id_key` allows one
+`user_id` per row, so writing it onto the profile in front of you works for the
+first device and raises a unique violation on the second — an account is not a
+device. The profile already holding `user_id` survives with its `profiles.id`,
+because that is the key every child table points at and the one the account's
+other devices already carry; the device's profile is the donor, its rows are
+re-parented and the row itself is deleted.
+
+The merge runs without asking. Whoever sits at that browser already reads the
+anonymous history in the UI, so merging exposes nothing new to them — it makes
+the exposure durable, portable and irreversible, and that is accepted. It also
+costs something: with no confirmation there is nowhere to ask, so every conflict
+needs an answer decided in advance.
+
+One rule gives all of them. Irreversible things merge additively, reversible
+things defer to the account. Content is re-parented and adds up, because none of
+it can be recreated. Preferences are a single column and a single tap, so the
+account's `career`, `english_level`, `preferred_tone`, `target_locale`,
+`country` and languages win and the donor's are discarded — a deliberate
+configuration outranks a value that may belong to a trial, or to somebody
+else's turn at a shared machine. `last_seen_at` is neither and takes the greater
+of the two; `created_at` stays the survivor's.
+
+That rule also settles the only unique constraint a merge can violate.
+`saved_phrases_unique_per_profile` is scoped per profile, so a phrase saved on
+both sides collides: the survivor's row wins, and the copy that goes takes a
+`saved_at` with it and nothing a reader would miss. Nothing else collides, which
+is worth writing down because it is structural rather than lucky —
+`translations.id` is a global primary key, so a translation belongs to exactly
+one profile and `user_feedback_one_per_type` never has two rows to reconcile.
+Scoping that key per profile would end that. The merge is one transaction for
+the reason `delete_profile` is one statement, and idempotent because a sign-in
+gets retried and a donor already gone is not an error.
+
+The session is part of that change, not a later one. `ensure_profile` creates a
+profile when it finds none, which is correct for a first visit and a trap after
+a merge: a device still sending its deleted key gets a new empty profile instead
+of an error, and the person watches their history vanish while every log stays
+quiet. Merging automatically makes that the main path rather than an edge case,
+so a server-issued session has to take over from the anonymous key in the same
+change. `resetAnonymousId` already exists for the delete path and is what clears
+the stale key.
+
+Retention needs nothing from this: re-parenting touches `profile_id` only, so
+`created_at` survives and `maintenance.anonymize_expired_content` keeps counting
+from the same day.
+
 ### Access control
 
 Every table holding user data has row level security enabled and no policies at
