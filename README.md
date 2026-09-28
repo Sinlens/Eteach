@@ -8,15 +8,17 @@ back into the Lovable editor, so keep the branch in a working state.
 
 ## Status
 
-| Layer | State |
-| --- | --- |
-| UI — translator, phrase library, history | Working |
-| Contracts and services | Working, behind ports |
-| Database schema and API functions | Deployed, and exercised end to end |
-| The rewrite itself | **Mocked.** The model belongs to a later phase |
+| Layer                                    | State                                                    |
+| ---------------------------------------- | -------------------------------------------------------- |
+| UI — translator, phrase library, history | Working                                                  |
+| Contracts and services                   | Working, behind ports                                    |
+| Database schema and API functions        | Deployed, and exercised end to end                       |
+| The rewrite itself                       | Wired to n8n, behind a flag. Fixtures remain the default |
 
-The rewriter returns authored fixtures, not model output. Everything around it —
-contracts, validation, persistence, UI — is real.
+`VITE_REWRITE_BACKEND` chooses where a rewrite comes from. Left unset it returns
+authored fixtures, so the app runs with no infrastructure at all; set to `n8n` it
+calls the workflow. Everything around it — contracts, validation, persistence,
+UI — is real either way.
 
 ## Running it
 
@@ -315,6 +317,39 @@ a project old enough to call it that. It is a server secret like the others and
 for the same reason, and it is not interchangeable with the service role key —
 authenticating somebody and being allowed to ignore who they are do not share a
 credential.
+
+### The n8n webhook
+
+| Variable               | Required   | Meaning                                                            |
+| ---------------------- | ---------- | ------------------------------------------------------------------ |
+| `VITE_REWRITE_BACKEND` | no         | `mock` (default) or `n8n`                                          |
+| `N8N_WEBHOOK_URL`      | when `n8n` | The Production or Test webhook URL                                 |
+| `N8N_WEBHOOK_SECRET`   | no         | Sent as an auth header; omit for an unsecured Test URL             |
+| `N8N_WEBHOOK_HEADER`   | no         | The header name the workflow checks. Defaults to `x-eteach-secret` |
+| `N8N_TIMEOUT_MS`       | no         | Defaults to 30000                                                  |
+
+Only the first is `VITE_`-prefixed, and the distinction is the point: that one
+names an adapter, which is not a secret. The other four are read from
+`process.env` in [`src/server/n8n.ts`](src/server/n8n.ts) and never reach the
+browser. A `VITE_N8N_WEBHOOK_URL` would be inlined into the bundle, which
+publishes the endpoint and whatever LLM bill it can run up.
+
+That is also why there is no CORS configuration anywhere in this repo. The
+browser posts to a TanStack server function on its own origin; the server posts
+to n8n. There is no cross-origin request for the workflow to have to allow, and
+adding one would mean giving the webhook away to get it.
+
+The workflow's "Respond to Webhook" node must answer with the shape in
+[`src/contracts/rewrite.ts`](src/contracts/rewrite.ts) — `professionalVersion`,
+`alternativeVersion`, `explanation`, `keyPhrases[]` and an optional
+`vocabulary[]`, each non-empty. An `{ "success": true, "result": { … } }`
+envelope is unwrapped, and `"success": false` is reported as an upstream failure.
+Anything else is rejected as a malformed response rather than rendered, because
+the last node in that workflow is a language model asked to answer in JSON — the
+one step in this system that can fail by being plausible instead of by erroring.
+`id` is minted on our side and any `id` the workflow sends is discarded: it keys
+feedback in `translations`, so a row's identity cannot depend on something
+outside this system that nothing would notice had started repeating.
 
 ## Built with
 
